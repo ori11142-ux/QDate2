@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 
 import { createUser, findUserById, findUserByEmail } from '../services/users';
 import {
@@ -29,8 +29,41 @@ import {
   toClientMatch,
 } from '../services/matchmaker';
 import { computeInsights } from '../services/insights';
+import { recordMessageEvent, recordFeedback } from '../services/learning';
+import {
+  getInterestCalibrationDeck,
+  getLookCalibrationDeck,
+} from '../services/calibration';
+import { UserModel } from '../models/User';
 
 export const router = Router();
+const RATE_WINDOW_MS = 60 * 1000;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function parseObjectId(value: string): Types.ObjectId | null {
+  if (!Types.ObjectId.isValid(value)) return null;
+  return new Types.ObjectId(value);
+}
+
+function softRateLimit(bucketKey: string, maxPerMinute: number) {
+  return (req: any, res: any, next: any) => {
+    const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
+    const key = `${bucketKey}:${ip}`;
+    const now = Date.now();
+    const current = rateBuckets.get(key);
+    if (!current || current.resetAt <= now) {
+      rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+      next();
+      return;
+    }
+    if (current.count >= maxPerMinute) {
+      res.status(429).json({ error: 'Too many requests, please slow down' });
+      return;
+    }
+    current.count += 1;
+    next();
+  };
+}
 
 // ─── Health ─────────────────────────────────────────────────────────────────
 
@@ -139,33 +172,53 @@ router.get('/matches/current/:userId', async (req, res) => {
 });
 
 // Generate (or return the existing) Phase 1 daily match for a user.
-router.post('/match/daily_generate', async (req, res) => {
+router.post('/match/daily_generate', softRateLimit('daily_generate', 30), async (req, res) => {
   try {
     const userId = req.body.user_id ?? req.body.userId;
     if (!userId) {
       res.status(400).json({ error: 'user_id is required' });
       return;
     }
-    const result = await generateMatchForUser(userId, 'phase_1');
+    const parsedUserId = parseObjectId(String(userId));
+    if (!parsedUserId) {
+      res.status(400).json({ error: 'Invalid user_id' });
+      return;
+    }
+    const result = await generateMatchForUser(String(parsedUserId), 'phase_1');
     if (!result) {
       res.status(404).json({ error: 'No candidates available right now' });
       return;
     }
-    res.json(toClientMatch(result.match, result.candidate));
+    const requester = await UserModel.findById(parsedUserId).select('cooldownUntil');
+    res.json(
+      toClientMatch(result.match, result.candidate, {
+        cooldownUntil: requester?.get('cooldownUntil') as Date | null | undefined,
+      })
+    );
   } catch (e: any) {
     res.status(400).json({ error: e?.message ?? 'Failed to generate match' });
   }
 });
 
 // Generate (or return the existing) Phase 2 weekly curated match for a user.
-router.get('/match/weekly_curated/:userId', async (req, res) => {
+router.get('/match/weekly_curated/:userId', softRateLimit('weekly_curated', 20), async (req, res) => {
   try {
-    const result = await generateMatchForUser(req.params.userId, 'phase_2');
+    const parsedUserId = parseObjectId(req.params.userId);
+    if (!parsedUserId) {
+      res.status(400).json({ error: 'Invalid userId' });
+      return;
+    }
+    const result = await generateMatchForUser(String(parsedUserId), 'phase_2');
     if (!result) {
       res.status(404).json({ error: 'No candidates available right now' });
       return;
     }
-    res.json(toClientMatch(result.match, result.candidate));
+    const requester = await UserModel.findById(parsedUserId).select('cooldownUntil');
+    res.json(
+      toClientMatch(result.match, result.candidate, {
+        cooldownUntil: requester?.get('cooldownUntil') as Date | null | undefined,
+      })
+    );
   } catch (e: any) {
     res.status(400).json({ error: e?.message ?? 'Failed to generate match' });
   }
@@ -193,6 +246,10 @@ router.post('/match/:matchId/skip', async (req, res) => {
   } else {
     await markSkipped(match._id);
   }
+  if (match.phase === 'phase_2' && match.isIntentionalPairing) {
+    const cooldownUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    await UserModel.updateOne({ _id: match.userId }, { cooldownUntil });
+  }
   res.json({ ok: true });
 });
 
@@ -201,6 +258,9 @@ router.post('/match/:matchId/connect', async (req, res) => {
   if (!match) {
     res.status(404).json({ error: 'Match not found' });
     return;
+  }
+  if (match.phase === 'phase_2') {
+    await UserModel.updateOne({ _id: match.userId }, { cooldownUntil: null });
   }
   res.json(match.toJSON());
 });
@@ -279,6 +339,90 @@ router.get('/insights/:userId', async (req, res) => {
     res.json(summary);
   } catch (e: any) {
     res.status(400).json({ error: e?.message ?? 'Failed to compute insights' });
+  }
+});
+
+// ─── Learning and analytics ───────────────────────────────────────────────────
+
+router.post('/analytics/message_event', softRateLimit('message_event', 120), async (req, res) => {
+  try {
+    const { matchId, senderId, messageLength, responseTimeSeconds } = req.body;
+    if (
+      !matchId ||
+      !senderId ||
+      typeof messageLength !== 'number' ||
+      typeof responseTimeSeconds !== 'number'
+    ) {
+      res.status(400).json({
+        error: 'matchId, senderId, messageLength, responseTimeSeconds are required',
+      });
+      return;
+    }
+    const parsedMatchId = parseObjectId(matchId);
+    const parsedSenderId = parseObjectId(senderId);
+    if (!parsedMatchId || !parsedSenderId) {
+      res.status(400).json({ error: 'matchId and senderId must be valid ids' });
+      return;
+    }
+    await recordMessageEvent({
+      matchId: parsedMatchId,
+      senderId: parsedSenderId,
+      messageLength,
+      responseTimeSeconds,
+    });
+    res.json({ intent_score_updated: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? 'Failed to record message event' });
+  }
+});
+
+router.post('/learning/feedback', softRateLimit('learning_feedback', 60), async (req, res) => {
+  try {
+    const { matchId, userId, willingnessToMeet, communicationCompatibility } = req.body;
+    if (
+      !matchId ||
+      !userId ||
+      typeof willingnessToMeet !== 'number' ||
+      typeof communicationCompatibility !== 'number'
+    ) {
+      res.status(400).json({
+        error: 'matchId, userId, willingnessToMeet, communicationCompatibility are required',
+      });
+      return;
+    }
+    const parsedMatchId = parseObjectId(matchId);
+    const parsedUserId = parseObjectId(userId);
+    if (!parsedMatchId || !parsedUserId) {
+      res.status(400).json({ error: 'matchId and userId must be valid ids' });
+      return;
+    }
+    await recordFeedback({
+      matchId: parsedMatchId,
+      userId: parsedUserId,
+      willingnessToMeet,
+      communicationCompatibility,
+    });
+    res.json({ accepted: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? 'Failed to submit feedback' });
+  }
+});
+
+router.get('/calibration/interests/:userId', async (req, res) => {
+  try {
+    const cards = await getInterestCalibrationDeck(req.params.userId);
+    res.json(cards);
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? 'Failed to load interests deck' });
+  }
+});
+
+router.get('/calibration/looks/:userId', async (req, res) => {
+  try {
+    const cards = await getLookCalibrationDeck(req.params.userId);
+    res.json(cards);
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? 'Failed to load looks deck' });
   }
 });
 
