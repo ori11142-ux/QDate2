@@ -1,5 +1,29 @@
 import { ChatMessage, InsightsSummary, InterestCard, LookCard, Match } from './types';
 
+// Generates a self-labeling look-card placeholder as a data-URI SVG, consistent
+// with the backend's makeLabeledLookPhoto. No external dependencies or network
+// calls — used so mock photoUrls are self-documenting and offline-safe.
+function mockLookPhoto(tags: string[]): string {
+  const xmlEscape = (s: string): string =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const lines =
+    tags.length <= 2
+      ? [tags.join(' · ')]
+      : [tags.slice(0, 2).join(' · '), tags[2]];
+  const textEls = lines
+    .map((line, i) => {
+      const y = lines.length === 1 ? 300 : 285 + i * 36;
+      return `<text x="300" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-size="22" fill="#e8e8e8">${xmlEscape(line)}</text>`;
+    })
+    .join('');
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">` +
+    `<rect width="600" height="600" fill="#2d2d2d"/>` +
+    textEls +
+    `</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 const dailyExpires = new Date(
   Date.now() + 16 * 60 * 60 * 1000 + 45 * 60 * 1000 + 12 * 1000
 );
@@ -89,14 +113,14 @@ export const mockInterestDeck: InterestCard[] = [
 ];
 
 export const mockLookDeck: LookCard[] = [
-  { id: 'look_01', photoUrl: 'https://i.pravatar.cc/600?img=49', name: 'Sophie', age: 27 },
-  { id: 'look_02', photoUrl: 'https://i.pravatar.cc/600?img=44', name: 'Hannah', age: 30 },
-  { id: 'look_03', photoUrl: 'https://i.pravatar.cc/600?img=47', name: 'Aria', age: 26 },
-  { id: 'look_04', photoUrl: 'https://i.pravatar.cc/600?img=45', name: 'Naomi', age: 32 },
-  { id: 'look_05', photoUrl: 'https://i.pravatar.cc/600?img=48', name: 'Iris', age: 29 },
-  { id: 'look_06', photoUrl: 'https://i.pravatar.cc/600?img=23', name: 'Ben', age: 28 },
-  { id: 'look_07', photoUrl: 'https://i.pravatar.cc/600?img=12', name: 'Daniel', age: 31 },
-  { id: 'look_08', photoUrl: 'https://i.pravatar.cc/600?img=14', name: 'Marco', age: 29 },
-  { id: 'look_09', photoUrl: 'https://i.pravatar.cc/600?img=33', name: 'Tom', age: 27 },
-  { id: 'look_10', photoUrl: 'https://i.pravatar.cc/600?img=68', name: 'Alex', age: 33 },
+  { id: 'look_01', name: 'Sophie', age: 27, tags: ['blonde', 'slim_build', 'light_skin'],                photoUrl: mockLookPhoto(['blonde', 'slim_build', 'light_skin']) },
+  { id: 'look_02', name: 'Hannah', age: 30, tags: ['dark_hair', 'athletic_build', 'medium_skin'],        photoUrl: mockLookPhoto(['dark_hair', 'athletic_build', 'medium_skin']) },
+  { id: 'look_03', name: 'Aria',   age: 26, tags: ['red_hair', 'curvy_build', 'light_skin'],             photoUrl: mockLookPhoto(['red_hair', 'curvy_build', 'light_skin']) },
+  { id: 'look_04', name: 'Naomi',  age: 32, tags: ['dark_skin', 'slim_build', 'clean_cut'],              photoUrl: mockLookPhoto(['dark_skin', 'slim_build', 'clean_cut']) },
+  { id: 'look_05', name: 'Iris',   age: 29, tags: ['light_brown_hair', 'athletic_build', 'medium_skin'], photoUrl: mockLookPhoto(['light_brown_hair', 'athletic_build', 'medium_skin']) },
+  { id: 'look_06', name: 'Ben',    age: 28, tags: ['blonde', 'full_build', 'light_skin'],                photoUrl: mockLookPhoto(['blonde', 'full_build', 'light_skin']) },
+  { id: 'look_07', name: 'Daniel', age: 31, tags: ['dark_hair', 'tall', 'clean_cut'],                    photoUrl: mockLookPhoto(['dark_hair', 'tall', 'clean_cut']) },
+  { id: 'look_08', name: 'Marco',  age: 29, tags: ['dark_skin', 'athletic_build', 'edgy_look'],          photoUrl: mockLookPhoto(['dark_skin', 'athletic_build', 'edgy_look']) },
+  { id: 'look_09', name: 'Tom',    age: 27, tags: ['light_brown_hair', 'short', 'medium_skin'],          photoUrl: mockLookPhoto(['light_brown_hair', 'short', 'medium_skin']) },
+  { id: 'look_10', name: 'Alex',   age: 33, tags: ['red_hair', 'slim_build', 'edgy_look'],               photoUrl: mockLookPhoto(['red_hair', 'slim_build', 'edgy_look']) },
 ];

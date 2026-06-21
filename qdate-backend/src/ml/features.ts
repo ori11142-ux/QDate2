@@ -116,12 +116,22 @@ export async function buildPreferenceVector(
     outdoor_energy: 0,
     mindful_service: 0,
     adventure: 0,
-    polished_style: 0,
-    natural_style: 0,
-    playful_energy: 0,
-    minimalist_style: 0,
-    expressive_style: 0,
-    confident_presence: 0,
+    // Physical-trait appearance tags
+    blonde: 0,
+    dark_hair: 0,
+    red_hair: 0,
+    light_brown_hair: 0,
+    light_skin: 0,
+    medium_skin: 0,
+    dark_skin: 0,
+    slim_build: 0,
+    athletic_build: 0,
+    curvy_build: 0,
+    full_build: 0,
+    tall: 0,
+    short: 0,
+    clean_cut: 0,
+    edgy_look: 0,
   };
 
   for (const swipe of swipes) {
