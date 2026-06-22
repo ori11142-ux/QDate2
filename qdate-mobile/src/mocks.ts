@@ -1,27 +1,10 @@
 import { ChatMessage, InsightsSummary, InterestCard, LookCard, Match } from './types';
 
-// Generates a self-labeling look-card placeholder as a data-URI SVG, consistent
-// with the backend's makeLabeledLookPhoto. No external dependencies or network
-// calls — used so mock photoUrls are self-documenting and offline-safe.
+// Generates a self-labeling look-card placeholder as a PNG URL that React
+// Native's <Image> can render without SVG dependencies.
 function mockLookPhoto(tags: string[]): string {
-  const xmlEscape = (s: string): string =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const lines =
-    tags.length <= 2
-      ? [tags.join(' · ')]
-      : [tags.slice(0, 2).join(' · '), tags[2]];
-  const textEls = lines
-    .map((line, i) => {
-      const y = lines.length === 1 ? 300 : 285 + i * 36;
-      return `<text x="300" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-size="22" fill="#e8e8e8">${xmlEscape(line)}</text>`;
-    })
-    .join('');
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">` +
-    `<rect width="600" height="600" fill="#2d2d2d"/>` +
-    textEls +
-    `</svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  const label = encodeURIComponent(tags.join(' · '));
+  return `https://placehold.co/600x600.png?text=${label}`;
 }
 
 const dailyExpires = new Date(
