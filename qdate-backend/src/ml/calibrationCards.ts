@@ -45,37 +45,12 @@ export type LookCalibrationCard = {
 };
 
 /**
- * Generates a self-labeling look-card placeholder image as a data-URI SVG.
- * The SVG renders each card's own tag tokens as text so photo and tags are
- * always in sync. These are trait-labeled placeholders — the tags are the
- * source of truth and the images can be swapped for a curated labeled photo
- * set later. Production tagging of real users (self-report vs. photo
- * classification) is intentionally deferred and out of scope here.
+ * Generates a self-labeling look-card placeholder as a PNG URL that React
+ * Native's <Image> can render without SVG dependencies.
  */
 export function makeLabeledLookPhoto(tags: CalibrationTag[]): string {
-  const xmlEscape = (s: string): string =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  // Split into two lines when there are 3 tags so text fits within the 600 px width.
-  const lines =
-    tags.length <= 2
-      ? [tags.join(' · ')]
-      : [tags.slice(0, 2).join(' · '), tags[2]];
-
-  const textEls = lines
-    .map((line, i) => {
-      const y = lines.length === 1 ? 300 : 285 + i * 36;
-      return `<text x="300" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-size="22" fill="#e8e8e8">${xmlEscape(line)}</text>`;
-    })
-    .join('');
-
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">` +
-    `<rect width="600" height="600" fill="#2d2d2d"/>` +
-    textEls +
-    `</svg>`;
-
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  const label = encodeURIComponent(tags.join(' · '));
+  return `https://placehold.co/600x600.png?text=${label}`;
 }
 
 // "Scale profiles" calibration library: each card has explicit tags that map
