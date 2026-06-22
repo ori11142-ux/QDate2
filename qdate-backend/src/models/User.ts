@@ -25,9 +25,16 @@ const userSchema = new Schema(
     gender: { type: String, enum: GENDERS, default: null },
     attraction: { type: String, enum: ATTRACTIONS, default: null },
 
-    // Profile picture. Stores either an external URL or a data URI
-    // ("data:image/jpeg;base64,..."). Null until the user adds one.
+    // Primary profile picture (mirrors photos[0]). Kept for the many avatar
+    // call-sites that expect a single URL. External URL or data URI.
     photoUrl: { type: String, default: null },
+
+    // Up to 4 profile pictures. photos[0] is the primary and is mirrored into
+    // photoUrl on create/update.
+    photos: { type: [String], default: [] },
+
+    // Short free-text bio, capped at 100 characters.
+    bio: { type: String, default: '', maxlength: 100, trim: true },
 
     passwordHash: { type: String, default: null, select: false },
 

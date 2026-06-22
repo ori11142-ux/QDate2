@@ -1,4 +1,5 @@
 export type CalibrationTag =
+  // ── interest / lifestyle axes (legacy, still valid) ──
   | 'active_lifestyle'
   | 'creative_arts'
   | 'intellectual_curiosity'
@@ -7,12 +8,44 @@ export type CalibrationTag =
   | 'outdoor_energy'
   | 'mindful_service'
   | 'adventure'
+  // ── appearance / style axes (used by the looks deck) ──
   | 'polished_style'
   | 'natural_style'
   | 'playful_energy'
   | 'minimalist_style'
   | 'expressive_style'
-  | 'confident_presence';
+  | 'confident_presence'
+  // ── concrete interest axes (user-selectable catalog) ──
+  | 'hiking'
+  | 'running'
+  | 'fitness'
+  | 'yoga'
+  | 'cooking'
+  | 'foodie'
+  | 'coffee'
+  | 'live_music'
+  | 'reading'
+  | 'art'
+  | 'photography'
+  | 'film'
+  | 'travel'
+  | 'gaming'
+  | 'nature'
+  | 'volunteering'
+  | 'nightlife'
+  | 'pets';
+
+// Canonical list of every axis. Used to build preference accumulators so adding
+// a new axis above is the only change required.
+export const CALIBRATION_TAGS: CalibrationTag[] = [
+  'active_lifestyle', 'creative_arts', 'intellectual_curiosity', 'social_energy',
+  'homebody_rhythm', 'outdoor_energy', 'mindful_service', 'adventure',
+  'polished_style', 'natural_style', 'playful_energy', 'minimalist_style',
+  'expressive_style', 'confident_presence',
+  'hiking', 'running', 'fitness', 'yoga', 'cooking', 'foodie', 'coffee',
+  'live_music', 'reading', 'art', 'photography', 'film', 'travel', 'gaming',
+  'nature', 'volunteering', 'nightlife', 'pets',
+];
 
 export type InterestCalibrationCard = {
   id: string;

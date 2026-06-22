@@ -21,6 +21,10 @@ export interface Match {
   candidateAge: number;
   candidateBio: string;
   candidatePhotoUrl?: string;
+  candidatePhotos?: string[];
+  candidateInterests?: string[];
+  candidateIntent?: DatingIntent;
+  candidateCommStyle?: CommStyle;
   expiresAt: string;
   dayInLearningPeriod?: number;
   totalLearningDays?: number;
@@ -65,19 +69,24 @@ export interface ChatMessage {
   fromMe: boolean;
 }
 
+// Calibration cards are now built from real profiles. `bio` is the real
+// profile's bio (interests mode); the legacy icon/label/description fields are
+// kept optional for backward compatibility with any static cards.
 export interface InterestCard {
   id: string;
-  icon: string;
-  label: string;
-  description: string;
+  bio?: string;
+  icon?: string;
+  label?: string;
+  description?: string;
   tags?: string[];
 }
 
 export interface LookCard {
   id: string;
   photoUrl: string;
-  name: string;
-  age: number;
+  photos?: string[];
+  name?: string;
+  age?: number;
   tags?: string[];
 }
 

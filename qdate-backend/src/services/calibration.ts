@@ -1,32 +1,95 @@
 import { Types } from 'mongoose';
 import { SwipeModel } from '../models/Swipe';
-import {
-  INTEREST_CALIBRATION_DECK,
-  LOOK_CALIBRATION_DECK,
-  InterestCalibrationCard,
-  LookCalibrationCard,
-} from '../ml/calibrationCards';
+import { UserDoc, UserModel } from '../models/User';
 
-async function unseenFirst<T extends { id: string }>(
-  userId: string | Types.ObjectId,
-  mode: 'interests' | 'looks',
-  deck: T[]
-): Promise<T[]> {
-  const seen = await SwipeModel.distinct('cardId', { userId, mode });
-  const seenSet = new Set(seen);
-  const unseen = deck.filter((c) => !seenSet.has(c.id));
-  const alreadySeen = deck.filter((c) => seenSet.has(c.id));
-  return [...unseen, ...alreadySeen];
+// Calibration decks are now built from REAL profiles instead of a static demo
+// library:
+//   - 'interests' cards show a profile's bio + their selected interest tags
+//     (no photo, no name) so the user calibrates on activities/lifestyle.
+//   - 'looks' cards show a profile's photos (no name, no bio) so the user
+//     calibrates on appearance.
+// Each card's `id` is the profile's user id; recordSwipe stores that id, and the
+// ML preference vectors (src/ml/features.ts) resolve it back to that user's tags.
+
+export type InterestProfileCard = {
+  id: string;
+  bio: string;
+  tags: string[];
+};
+
+export type LookProfileCard = {
+  id: string;
+  photoUrl: string;
+  photos: string[];
+  tags: string[];
+};
+
+/** Does someone with this `attraction` want to be shown this `gender`? */
+function attractedTo(
+  attraction: string | null | undefined,
+  gender: string | null | undefined
+): boolean {
+  if (!attraction || attraction === 'both') return true;
+  if (attraction === 'men') return gender === 'man';
+  if (attraction === 'women') return gender === 'woman';
+  return true;
+}
+
+/** Other users this requester could plausibly date (one-directional attraction). */
+async function eligibleProfiles(userId: string | Types.ObjectId): Promise<UserDoc[]> {
+  const me = await UserModel.findById(userId);
+  if (!me) return [];
+  const others = await UserModel.find({ _id: { $ne: me._id } });
+  return others.filter((c) => attractedTo(me.attraction, c.gender));
+}
+
+/** Cards the user hasn't swiped on yet come first; already-seen ones trail. */
+function orderUnseenFirst<T extends { id: string }>(cards: T[], seen: Set<string>): T[] {
+  const unseen = cards.filter((c) => !seen.has(c.id));
+  const already = cards.filter((c) => seen.has(c.id));
+  return [...unseen, ...already];
 }
 
 export async function getInterestCalibrationDeck(
   userId: string | Types.ObjectId
-): Promise<InterestCalibrationCard[]> {
-  return unseenFirst(userId, 'interests', INTEREST_CALIBRATION_DECK);
+): Promise<InterestProfileCard[]> {
+  const [profiles, seen] = await Promise.all([
+    eligibleProfiles(userId),
+    SwipeModel.distinct('cardId', { userId, mode: 'interests' }),
+  ]);
+
+  const cards: InterestProfileCard[] = profiles
+    .filter((p) => ((p.get('interestTags') as string[] | undefined) ?? []).length > 0)
+    .map((p) => ({
+      id: String(p._id),
+      bio: (p.get('bio') as string | undefined)?.trim() || '',
+      tags: (p.get('interestTags') as string[] | undefined) ?? [],
+    }));
+
+  return orderUnseenFirst(cards, new Set(seen));
 }
 
 export async function getLookCalibrationDeck(
   userId: string | Types.ObjectId
-): Promise<LookCalibrationCard[]> {
-  return unseenFirst(userId, 'looks', LOOK_CALIBRATION_DECK);
+): Promise<LookProfileCard[]> {
+  const [profiles, seen] = await Promise.all([
+    eligibleProfiles(userId),
+    SwipeModel.distinct('cardId', { userId, mode: 'looks' }),
+  ]);
+
+  const cards: LookProfileCard[] = profiles
+    .map((p) => {
+      const photos = (p.get('photos') as string[] | undefined) ?? [];
+      const primary = photos[0] ?? (p.get('photoUrl') as string | null | undefined) ?? null;
+      return { profile: p, photos, primary };
+    })
+    .filter((x): x is { profile: UserDoc; photos: string[]; primary: string } => !!x.primary)
+    .map(({ profile, photos, primary }) => ({
+      id: String(profile._id),
+      photoUrl: primary,
+      photos: photos.length > 0 ? photos : [primary],
+      tags: (profile.get('appearanceTags') as string[] | undefined) ?? [],
+    }));
+
+  return orderUnseenFirst(cards, new Set(seen));
 }

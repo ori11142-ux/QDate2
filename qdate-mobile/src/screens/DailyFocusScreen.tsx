@@ -17,6 +17,7 @@ import {
 
 import { api } from '../api';
 import { useAuth } from '../auth/AuthContext';
+import { interestEmoji, interestLabel } from '../data/interests';
 import { CooldownModal } from '../components/CooldownModal';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { MatchRevealCard } from '../components/MatchRevealCard';
@@ -35,6 +36,19 @@ type Props = CompositeScreenProps<
 >;
 
 type Stage = 'loading' | 'mystery' | 'revealed' | 'closed' | 'unavailable';
+
+const INTENT_LABELS: Record<string, string> = {
+  long_term: 'Long-term relationship',
+  casual: 'Casual dating',
+  explore: 'Exploring',
+  friendship: 'Friendship',
+};
+
+const COMM_LABELS: Record<string, string> = {
+  texting_first: 'Texting first',
+  voice_early: 'Voice calls early',
+  meet_in_person: 'Meet in person',
+};
 
 const PHASE_CONFIG: Record<
   Phase,
@@ -92,8 +106,12 @@ export function DailyFocusScreen({ navigation }: Props) {
 
   const profileOpacity = useRef(new Animated.Value(0)).current;
   const profileTranslate = useRef(new Animated.Value(20)).current;
+  // True while we're committing our own skip, so the "got skipped" poll doesn't
+  // race in and fetch a new match when WE are the one ending the pairing.
+  const skippingRef = useRef(false);
 
   const loadMatch = useCallback(() => {
+    skippingRef.current = false;
     setStage('loading');
     setMatch(null);
     setNextMatchAt(null);
@@ -129,6 +147,36 @@ export function DailyFocusScreen({ navigation }: Props) {
   useEffect(() => {
     loadMatch();
   }, [loadMatch]);
+
+  // Which of the candidate's photos is shown large. Reset whenever the match changes.
+  const [activePhoto, setActivePhoto] = useState(0);
+  useEffect(() => {
+    setActivePhoto(0);
+  }, [match?.matchId]);
+
+  // While a match is on screen (phase 1), poll to detect being skipped by the
+  // other person: their skip ends our pairing, so our "current" match vanishes.
+  // When that happens we pull a fresh match instead of leaving a dead one up.
+  useEffect(() => {
+    if (phase !== 'phase_1') return;
+    if (stage !== 'mystery' && stage !== 'revealed') return;
+    if (!match) return;
+
+    const interval = setInterval(async () => {
+      if (skippingRef.current) return;
+      try {
+        const current = await api.getCurrentMatch(userId);
+        if (skippingRef.current) return;
+        if (!current || current.id !== match.matchId) {
+          loadMatch();
+        }
+      } catch {
+        // transient network error — keep the current match and try again next tick
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [phase, stage, match, userId, loadMatch]);
 
   function handleRevealComplete() {
     setStage('revealed');
@@ -170,6 +218,7 @@ export function DailyFocusScreen({ navigation }: Props) {
 
   async function commitSkip() {
     if (!match) return;
+    skippingRef.current = true;
     setCooldownModalOpen(false);
     setActionInFlight(true);
     try {
@@ -261,32 +310,92 @@ export function DailyFocusScreen({ navigation }: Props) {
               },
             ]}
           >
-            <View style={styles.card}>
-              <View style={styles.photo}>
-                {match.candidatePhotoUrl ? (
-                  <Image
-                    source={{ uri: match.candidatePhotoUrl }}
-                    style={styles.photoImage}
-                  />
-                ) : (
-                  <Text style={styles.photoInitial}>{match.candidateName[0]}</Text>
-                )}
-                <View style={styles.timerOverlay}>
-                  <CountdownTimer expiresAt={match.expiresAt} compact />
-                </View>
-                {phase === 'phase_2' && match.isIntentionalPairing && (
-                  <View style={styles.intentBadge}>
-                    <Text style={styles.intentBadgeText}>✦ Curated</Text>
+            {(() => {
+              const photos =
+                match.candidatePhotos && match.candidatePhotos.length > 0
+                  ? match.candidatePhotos
+                  : match.candidatePhotoUrl
+                  ? [match.candidatePhotoUrl]
+                  : [];
+              const mainPhoto = photos[activePhoto] ?? photos[0];
+              const interests = match.candidateInterests ?? [];
+              return (
+                <View style={styles.card}>
+                  <View style={styles.photo}>
+                    {mainPhoto ? (
+                      <Image source={{ uri: mainPhoto }} style={styles.photoImage} />
+                    ) : (
+                      <Text style={styles.photoInitial}>{match.candidateName[0]}</Text>
+                    )}
+                    <View style={styles.timerOverlay}>
+                      <CountdownTimer expiresAt={match.expiresAt} compact />
+                    </View>
+                    {phase === 'phase_2' && match.isIntentionalPairing && (
+                      <View style={styles.intentBadge}>
+                        <Text style={styles.intentBadgeText}>✦ Curated</Text>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.name}>
-                  {match.candidateName}, {match.candidateAge}
-                </Text>
-                <Text style={styles.bio}>{match.candidateBio}</Text>
-              </View>
-            </View>
+
+                  {photos.length > 1 && (
+                    <View style={styles.thumbRow}>
+                      {photos.map((uri, i) => (
+                        <Pressable
+                          key={i}
+                          onPress={() => setActivePhoto(i)}
+                          style={[styles.thumb, i === activePhoto && styles.thumbActive]}
+                        >
+                          <Image source={{ uri }} style={styles.thumbImage} />
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+
+                  <View style={styles.cardBody}>
+                    <Text style={styles.name}>
+                      {match.candidateName}, {match.candidateAge}
+                    </Text>
+                    <Text style={styles.bio}>{match.candidateBio}</Text>
+
+                    {(match.candidateIntent || match.candidateCommStyle) && (
+                      <View style={styles.metaRows}>
+                        {match.candidateIntent && (
+                          <View style={styles.metaRow}>
+                            <Text style={styles.metaLabel}>Looking for</Text>
+                            <Text style={styles.metaValue}>
+                              {INTENT_LABELS[match.candidateIntent] ?? match.candidateIntent}
+                            </Text>
+                          </View>
+                        )}
+                        {match.candidateCommStyle && (
+                          <View style={styles.metaRow}>
+                            <Text style={styles.metaLabel}>Communication</Text>
+                            <Text style={styles.metaValue}>
+                              {COMM_LABELS[match.candidateCommStyle] ?? match.candidateCommStyle}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {interests.length > 0 && (
+                      <>
+                        <Text style={styles.interestsLabel}>Interests</Text>
+                        <View style={styles.interestChips}>
+                          {interests.map((tag) => (
+                            <View key={tag} style={styles.interestChip}>
+                              <Text style={styles.interestChipText}>
+                                {interestEmoji(tag)} {interestLabel(tag)}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </>
+                    )}
+                  </View>
+                </View>
+              );
+            })()}
 
             <View style={styles.actions}>
               <PrimaryButton
@@ -315,7 +424,7 @@ export function DailyFocusScreen({ navigation }: Props) {
               {nextMatchAt && (
                 <View style={styles.countdownBlock}>
                   <Text style={styles.countdownLabel}>Next match in</Text>
-                  <CountdownTimer expiresAt={nextMatchAt} />
+                  <CountdownTimer expiresAt={nextMatchAt} onComplete={loadMatch} />
                 </View>
               )}
             </View>
@@ -423,6 +532,53 @@ const styles = StyleSheet.create({
   cardBody: { padding: spacing.lg, gap: spacing.sm },
   name: { ...typography.display, color: colors.text },
   bio: { ...typography.body, color: colors.textMuted },
+
+  thumbRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  thumb: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: colors.surfaceMuted,
+  },
+  thumbActive: { borderColor: colors.primary },
+  thumbImage: { width: '100%', height: '100%' },
+
+  metaRows: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  metaLabel: { ...typography.caption, color: colors.textMuted },
+  metaValue: { ...typography.body, color: colors.text, flexShrink: 1, textAlign: 'right' },
+
+  interestsLabel: {
+    ...typography.micro,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: spacing.sm,
+  },
+  interestChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  interestChip: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  interestChipText: { ...typography.caption, color: colors.text },
 
   actions: {
     flexDirection: 'row',

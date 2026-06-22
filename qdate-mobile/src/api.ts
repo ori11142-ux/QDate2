@@ -83,6 +83,8 @@ export interface BackendUser {
   age: number;
   authMethod: 'email' | 'apple';
   photoUrl: string | null;
+  photos: string[];
+  bio: string;
   gender: 'man' | 'woman' | null;
   attraction: 'men' | 'women' | 'both' | null;
   profile: {
@@ -90,10 +92,24 @@ export interface BackendUser {
     sharedIntellectImportance: number;
     commStyle: 'texting_first' | 'voice_early' | 'meet_in_person';
   };
+  interestTags: string[];
+  appearanceTags: string[];
   currentPhase: 'phase_1' | 'phase_2';
   intentScore: number;
   createdAt: string;
 }
+
+// Fields the client is allowed to edit on an existing profile.
+export type ProfileUpdatePayload = {
+  name?: string;
+  age?: number;
+  gender?: 'man' | 'woman' | null;
+  attraction?: 'men' | 'women' | 'both' | null;
+  photos?: string[];
+  bio?: string;
+  profile?: BackendUser['profile'];
+  interestTags?: string[];
+};
 
 export type RegisterPayload = {
   email: string;
@@ -101,7 +117,9 @@ export type RegisterPayload = {
   age: number;
   authMethod: 'email' | 'apple';
   password: string;
-  photoUrl?: string | null;
+  photos: string[];
+  bio?: string;
+  interestTags?: string[];
   gender?: 'man' | 'woman' | null;
   attraction?: 'men' | 'women' | 'both' | null;
   profile: BackendUser['profile'];
@@ -123,6 +141,13 @@ export const api = {
     });
   },
 
+  async updateProfile(userId: string, updates: ProfileUpdatePayload): Promise<BackendUser> {
+    return request<BackendUser>(`/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+
   // ── Matches / insights / calibration — mockable for now ───────────────────
   // ── Matches — REAL backend (heuristic matcher) ────────────────────────────
   async generateDailyMatch(userId: string): Promise<Match> {
@@ -134,6 +159,12 @@ export const api = {
 
   async getWeeklyCuratedMatch(userId: string): Promise<Match> {
     return request<Match>(`/match/weekly_curated/${userId}`);
+  },
+
+  // Lightweight poll: the user's currently-open match (pending/active), or null
+  // if their pairing ended (e.g. the other person skipped them).
+  async getCurrentMatch(userId: string): Promise<{ id: string; status: string } | null> {
+    return request<{ id: string; status: string } | null>(`/matches/current/${userId}`);
   },
 
   async revealMatch(matchId: string): Promise<void> {

@@ -80,14 +80,20 @@ async function findBestCandidateWithScore(
 ): Promise<{ candidate: UserDoc; score: number } | null> {
   const excludedIds: Types.ObjectId[] = [requester._id as Types.ObjectId];
 
-  // Everyone currently busy in a pairing (one-at-a-time applies to candidates
-  // too). We deliberately do NOT exclude people whose past pairing with the
-  // requester already ended — that lets a small user base re-match after a skip.
+  // Everyone currently busy in a pairing (one-at-a-time applies to candidates too).
   const busy = await MatchModel.find({
     status: { $in: ['pending_reveal', 'active', 'connected'] },
   }).select('userId');
   for (const m of busy) {
     excludedIds.push(m.userId as Types.ObjectId);
+  }
+
+  // Anyone the requester has ALREADY been matched with (any status). Once a
+  // match is skipped it should be gone for good — never reintroduce the same
+  // person, even when the user base is small.
+  const pastMatches = await MatchModel.find({ userId: requester._id }).select('candidateUserId');
+  for (const m of pastMatches) {
+    excludedIds.push(m.candidateUserId as Types.ObjectId);
   }
 
   const candidates = await UserModel.find({ _id: { $nin: excludedIds } });
@@ -228,14 +234,21 @@ export function toClientMatch(
 ) {
   const cooldownUntil = opts?.cooldownUntil ?? null;
   const cooldownActive = cooldownUntil ? cooldownUntil.getTime() > Date.now() : false;
+  const photos = (candidate.get('photos') as string[] | undefined) ?? [];
+  const primaryPhoto = photos[0] ?? candidate.photoUrl ?? undefined;
+  const writtenBio = (candidate.get('bio') as string | undefined)?.trim();
   return {
     matchId: String(match._id),
     status: match.status,
     conversationId: match.conversationId ?? undefined,
     candidateName: candidate.name,
     candidateAge: candidate.age,
-    candidateBio: synthesizeBio(candidate),
-    candidatePhotoUrl: candidate.photoUrl ?? undefined,
+    candidateBio: writtenBio || synthesizeBio(candidate),
+    candidatePhotoUrl: primaryPhoto,
+    candidatePhotos: photos.length > 0 ? photos : primaryPhoto ? [primaryPhoto] : [],
+    candidateInterests: (candidate.get('interestTags') as string[] | undefined) ?? [],
+    candidateIntent: candidate.profile?.intent,
+    candidateCommStyle: candidate.profile?.commStyle,
     expiresAt: match.expiresAt.toISOString(),
     dayInLearningPeriod: match.dayInLearningPeriod ?? undefined,
     totalLearningDays: match.phase === 'phase_1' ? LEARNING_DAYS : undefined,

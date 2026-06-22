@@ -12,6 +12,7 @@ import {
 import { api } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import { SwipeCard } from '../components/SwipeCard';
+import { interestEmoji, interestLabel } from '../data/interests';
 import {
   CalibrationMode,
   InterestCard,
@@ -98,8 +99,8 @@ export function DiscoverScreen() {
 
       <Text style={styles.modeHint}>
         {mode === 'interests'
-          ? 'Swipe on activities and interests — no faces, no names.'
-          : 'Swipe on appearance — no bios, no interests.'}
+          ? 'Real people, no photos — swipe on their interests and bio.'
+          : 'Real people, no names or bios — swipe on appearance only.'}
       </Text>
 
       <View style={styles.deckArea}>
@@ -195,11 +196,30 @@ function ModeChip({
 }
 
 function InterestCardBody({ card }: { card: InterestCard }) {
+  const tags = card.tags ?? [];
+  // Legacy static cards still carry an icon/label; new ones are real profiles.
+  if (card.icon || card.label) {
+    return (
+      <View style={interestStyles.body}>
+        <Text style={interestStyles.icon}>{card.icon}</Text>
+        <Text style={interestStyles.label}>{card.label}</Text>
+        <Text style={interestStyles.description}>{card.description}</Text>
+      </View>
+    );
+  }
   return (
-    <View style={interestStyles.body}>
-      <Text style={interestStyles.icon}>{card.icon}</Text>
-      <Text style={interestStyles.label}>{card.label}</Text>
-      <Text style={interestStyles.description}>{card.description}</Text>
+    <View style={interestStyles.profileBody}>
+      <Text style={interestStyles.kicker}>Their interests</Text>
+      <View style={interestStyles.chips}>
+        {tags.map((tag) => (
+          <View key={tag} style={interestStyles.chip}>
+            <Text style={interestStyles.chipText}>
+              {interestEmoji(tag)} {interestLabel(tag)}
+            </Text>
+          </View>
+        ))}
+      </View>
+      {card.bio ? <Text style={interestStyles.bio}>“{card.bio}”</Text> : null}
     </View>
   );
 }
@@ -208,11 +228,14 @@ function LookCardBody({ card }: { card: LookCard }) {
   return (
     <View style={lookStyles.body}>
       <Image source={{ uri: card.photoUrl }} style={lookStyles.photo} />
-      <View style={lookStyles.caption}>
-        <Text style={lookStyles.name}>
-          {card.name}, {card.age}
-        </Text>
-      </View>
+      {card.name ? (
+        <View style={lookStyles.caption}>
+          <Text style={lookStyles.name}>
+            {card.name}
+            {card.age ? `, ${card.age}` : ''}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -347,6 +370,44 @@ const interestStyles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: spacing.md,
+  },
+
+  profileBody: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+    backgroundColor: colors.surfaceMuted,
+  },
+  kicker: {
+    ...typography.micro,
+    color: colors.primary,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'center',
+  },
+  chip: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipText: { ...typography.body, color: colors.text },
+  bio: {
+    ...typography.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 22,
+    marginTop: spacing.sm,
   },
 });
 

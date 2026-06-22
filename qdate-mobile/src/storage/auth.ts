@@ -11,9 +11,12 @@ export interface StoredUser {
   age: number;
   authMethod: AuthMethod;
   photoUrl: string | null;
+  photos: string[];
+  bio: string;
   gender: 'man' | 'woman' | null;
   attraction: 'men' | 'women' | 'both' | null;
   profile: IntentProfile;
+  interestTags: string[];
   currentPhase: Phase;
   registeredAt: string;
 }
@@ -31,6 +34,8 @@ export async function loadUser(): Promise<StoredUser | null> {
       age: parsed.age ?? 0,
       authMethod: parsed.authMethod ?? 'email',
       photoUrl: parsed.photoUrl ?? null,
+      photos: parsed.photos ?? (parsed.photoUrl ? [parsed.photoUrl] : []),
+      bio: parsed.bio ?? '',
       gender: parsed.gender ?? null,
       attraction: parsed.attraction ?? null,
       profile: parsed.profile ?? {
@@ -38,6 +43,7 @@ export async function loadUser(): Promise<StoredUser | null> {
         sharedIntellectImportance: 3,
         commStyle: 'texting_first',
       },
+      interestTags: parsed.interestTags ?? [],
       currentPhase: parsed.currentPhase ?? 'phase_1',
       registeredAt: parsed.registeredAt ?? new Date().toISOString(),
     };

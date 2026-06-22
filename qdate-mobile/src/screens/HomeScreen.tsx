@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Image,
-  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,20 +9,13 @@ import {
 } from 'react-native';
 
 import { useAuth } from '../auth/AuthContext';
-import { DAILY_TIPS, getTodaysTip } from '../data/tips';
+import { getTodaysTip } from '../data/tips';
 import { colors, radius, spacing, typography } from '../theme';
 
 export function HomeScreen() {
   const { user } = useAuth();
-  const [tipIndex, setTipIndex] = useState(() =>
-    DAILY_TIPS.indexOf(getTodaysTip())
-  );
-
-  const tip = DAILY_TIPS[tipIndex];
-
-  function handleNextTip() {
-    setTipIndex((i) => (i + 1) % DAILY_TIPS.length);
-  }
+  // One tip per day — the same tip for the whole day, no cycling.
+  const tip = getTodaysTip();
 
   const greeting = getTimeGreeting();
   const phaseLabel =
@@ -59,15 +51,6 @@ export function HomeScreen() {
           <Text style={styles.tipKicker}>Tip for today</Text>
           <Text style={styles.tipTitle}>{tip.title}</Text>
           <Text style={styles.tipBody}>{tip.body}</Text>
-
-          <View style={styles.tipFooter}>
-            <Pressable onPress={handleNextTip} hitSlop={8} style={styles.nextTipBtn}>
-              <Text style={styles.nextTipLabel}>Another tip →</Text>
-            </Pressable>
-            <Text style={styles.tipCount}>
-              {tipIndex + 1} / {DAILY_TIPS.length}
-            </Text>
-          </View>
         </View>
 
         <View style={styles.philosophy}>
@@ -149,26 +132,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textMuted,
     lineHeight: 22,
-  },
-  tipFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  nextTipBtn: { paddingVertical: spacing.xs },
-  nextTipLabel: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  tipCount: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontVariant: ['tabular-nums'],
   },
 
   philosophy: {

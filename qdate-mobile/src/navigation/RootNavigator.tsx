@@ -1,19 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  createNativeStackNavigator,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../auth/AuthContext';
+import { ProfileMenu } from '../components/ProfileMenu';
 import { ChatScreen } from '../screens/ChatScreen';
 import { DailyFocusScreen } from '../screens/DailyFocusScreen';
 import { DiscoverScreen } from '../screens/DiscoverScreen';
+import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { InsightsScreen } from '../screens/InsightsScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { WelcomeScreen } from '../screens/WelcomeScreen';
-import { colors, typography } from '../theme';
+import { colors, spacing, typography } from '../theme';
 
 export type AuthMethod = 'email' | 'apple';
 
@@ -27,9 +33,11 @@ export type RootStackParamList = {
     password: string;
     age: number;
     authMethod: AuthMethod;
-    photoUrl: string | null;
+    photos: string[];
+    bio: string;
   };
   Main: undefined;
+  EditProfile: undefined;
   Chat: {
     matchId: string;
     conversationId?: string;
@@ -48,19 +56,36 @@ export type MainTabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-function MainTabs() {
+function AppBar({ onMenuPress }: { onMenuPress: () => void }) {
+  const insets = useSafeAreaInsets();
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-        },
-      }}
-    >
+    <View style={[appBarStyles.bar, { paddingTop: insets.top + spacing.sm }]}>
+      <Pressable onPress={onMenuPress} hitSlop={12} style={appBarStyles.menuBtn}>
+        <Text style={appBarStyles.menuIcon}>☰</Text>
+      </Pressable>
+      <Text style={appBarStyles.brand}>QDate</Text>
+      <View style={appBarStyles.spacer} />
+    </View>
+  );
+}
+
+function MainTabs({ navigation }: NativeStackScreenProps<RootStackParamList, 'Main'>) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <View style={appBarStyles.container}>
+      <AppBar onMenuPress={() => setMenuOpen(true)} />
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+          },
+        }}
+      >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
@@ -101,9 +126,35 @@ function MainTabs() {
           ),
         }}
       />
-    </Tab.Navigator>
+      </Tab.Navigator>
+      <ProfileMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onEditProfile={() => {
+          setMenuOpen(false);
+          navigation.navigate('EditProfile');
+        }}
+      />
+    </View>
   );
 }
+
+const appBarStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  menuBtn: { width: 40, height: 32, justifyContent: 'center' },
+  menuIcon: { fontSize: 24, color: colors.text },
+  brand: { ...typography.heading, color: colors.primary, letterSpacing: 0.5 },
+  spacer: { width: 40 },
+});
 
 function HydrationSplash() {
   return (
@@ -135,6 +186,11 @@ export function RootNavigator() {
       {user ? (
         <>
           <Stack.Screen name="Main" component={MainTabs} />
+          <Stack.Screen
+            name="EditProfile"
+            component={EditProfileScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
           <Stack.Screen
             name="Chat"
             component={ChatScreen}

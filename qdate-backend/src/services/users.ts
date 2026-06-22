@@ -30,11 +30,29 @@ export async function findUserByEmail(email: string): Promise<UserDoc | null> {
   return UserModel.findOne({ email: email.toLowerCase().trim() });
 }
 
+export type ProfileUpdate = Partial<
+  Pick<
+    User,
+    | 'name'
+    | 'age'
+    | 'gender'
+    | 'attraction'
+    | 'photoUrl'
+    | 'photos'
+    | 'bio'
+    | 'profile'
+    | 'interestTags'
+    | 'appearanceTags'
+  >
+>;
+
 export async function updateUserProfile(
   id: string | Types.ObjectId,
-  updates: Partial<Pick<User, 'name' | 'age' | 'profile'>>
+  updates: ProfileUpdate
 ): Promise<UserDoc | null> {
-  return UserModel.findByIdAndUpdate(id, updates, { new: true });
+  // runValidators so enum/range constraints (age, gender, intent, …) are
+  // enforced on edits the same way they are on creation.
+  return UserModel.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
 }
 
 export async function setUserPhase(
