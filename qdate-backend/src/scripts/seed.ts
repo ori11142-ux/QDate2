@@ -25,22 +25,30 @@ const PASSWORD = 'qdate1234';
 // (a man into women, or a woman into men) has several mutual matches available.
 const PROFILES = [
   // ── men ──────────────────────────────────────────────────────────────────
-  { name: 'Noah Bennett',  age: 27, gender: 'man',   attraction: 'women', intent: 'long_term',  intellect: 5, comm: 'texting_first',  score: 7.2, img: 11 },
-  { name: 'Itai Cohen',    age: 31, gender: 'man',   attraction: 'women', intent: 'casual',     intellect: 3, comm: 'voice_early',    score: 5.6, img: 13 },
-  { name: 'Daniel Roth',   age: 24, gender: 'man',   attraction: 'both',  intent: 'explore',    intellect: 4, comm: 'meet_in_person', score: 6.1, img: 14 },
-  { name: 'Adam Frost',    age: 35, gender: 'man',   attraction: 'women', intent: 'long_term',  intellect: 5, comm: 'texting_first',  score: 8.3, img: 15 },
-  { name: 'Yonatan Levi',  age: 29, gender: 'man',   attraction: 'women', intent: 'friendship', intellect: 2, comm: 'voice_early',    score: 4.8, img: 51 },
-  { name: 'Omer Katz',     age: 26, gender: 'man',   attraction: 'both',  intent: 'casual',     intellect: 4, comm: 'meet_in_person', score: 6.9, img: 52 },
+  { name: 'Noah Bennett',  age: 27, gender: 'man',   attraction: 'women', intent: 'long_term',  intellect: 5, comm: 'texting_first',  score: 7.2, img: 11, bio: 'Bookworm and marathon trainer. Quiet Sundays and long talks.' },
+  { name: 'Itai Cohen',    age: 31, gender: 'man',   attraction: 'women', intent: 'casual',     intellect: 3, comm: 'voice_early',    score: 5.6, img: 13, bio: 'Coffee, vinyl records, and spontaneous road trips.' },
+  { name: 'Daniel Roth',   age: 24, gender: 'man',   attraction: 'both',  intent: 'explore',    intellect: 4, comm: 'meet_in_person', score: 6.1, img: 14, bio: 'Design student who loves galleries, ramen, and late-night talks.' },
+  { name: 'Adam Frost',    age: 35, gender: 'man',   attraction: 'women', intent: 'long_term',  intellect: 5, comm: 'texting_first',  score: 8.3, img: 15, bio: 'Builder by day, home cook by night. Sourdough is my love language.' },
+  { name: 'Yonatan Levi',  age: 29, gender: 'man',   attraction: 'women', intent: 'friendship', intellect: 2, comm: 'voice_early',    score: 4.8, img: 51, bio: 'Easygoing, here for real friends first. Board games and hikes.' },
+  { name: 'Omer Katz',     age: 26, gender: 'man',   attraction: 'both',  intent: 'casual',     intellect: 4, comm: 'meet_in_person', score: 6.9, img: 52, bio: 'Climber and foodie. Always chasing the next adventure.' },
   // ── women ────────────────────────────────────────────────────────────────
-  { name: 'Maya Chen',     age: 28, gender: 'woman', attraction: 'men',   intent: 'long_term',  intellect: 5, comm: 'texting_first',  score: 8.0, img: 44 },
-  { name: 'Noa Shapiro',   age: 25, gender: 'woman', attraction: 'both',  intent: 'casual',     intellect: 3, comm: 'voice_early',    score: 5.9, img: 45 },
-  { name: 'Tamar Klein',   age: 33, gender: 'woman', attraction: 'men',   intent: 'long_term',  intellect: 5, comm: 'meet_in_person', score: 8.6, img: 47 },
-  { name: 'Shira Avni',    age: 27, gender: 'woman', attraction: 'men',   intent: 'explore',    intellect: 4, comm: 'texting_first',  score: 6.4, img: 48 },
-  { name: 'Yael Bar',      age: 30, gender: 'woman', attraction: 'both',  intent: 'long_term',  intellect: 4, comm: 'voice_early',    score: 7.5, img: 49 },
-  { name: 'Olivia Park',   age: 29, gender: 'woman', attraction: 'men',   intent: 'casual',     intellect: 3, comm: 'texting_first',  score: 6.0, img: 26 },
-  { name: 'Emma Wright',   age: 26, gender: 'woman', attraction: 'women', intent: 'long_term',  intellect: 5, comm: 'meet_in_person', score: 7.8, img: 31 },
-  { name: 'Lior Mizrahi',  age: 32, gender: 'woman', attraction: 'men',   intent: 'friendship', intellect: 2, comm: 'voice_early',    score: 5.1, img: 32 },
+  { name: 'Maya Chen',     age: 28, gender: 'woman', attraction: 'men',   intent: 'long_term',  intellect: 5, comm: 'texting_first',  score: 8.0, img: 44, bio: 'Reader, writer, tea enthusiast. Depth over small talk.' },
+  { name: 'Noa Shapiro',   age: 25, gender: 'woman', attraction: 'both',  intent: 'casual',     intellect: 3, comm: 'voice_early',    score: 5.9, img: 45, bio: 'Live music and dancing are my therapy. Name your favorite venue.' },
+  { name: 'Tamar Klein',   age: 33, gender: 'woman', attraction: 'men',   intent: 'long_term',  intellect: 5, comm: 'meet_in_person', score: 8.6, img: 47, bio: 'Curious mind, gallery regular. Seeking a genuine, lasting connection.' },
+  { name: 'Shira Avni',    age: 27, gender: 'woman', attraction: 'men',   intent: 'explore',    intellect: 4, comm: 'texting_first',  score: 6.4, img: 48, bio: 'Sunrise hikes and good conversation. Exploring with an open heart.' },
+  { name: 'Yael Bar',      age: 30, gender: 'woman', attraction: 'both',  intent: 'long_term',  intellect: 4, comm: 'voice_early',    score: 7.5, img: 49, bio: 'Volunteer, plant mom, eternal optimist. Let us build something real.' },
+  { name: 'Olivia Park',   age: 29, gender: 'woman', attraction: 'men',   intent: 'casual',     intellect: 3, comm: 'texting_first',  score: 6.0, img: 26, bio: 'City explorer, casual dater, big laugher. Surprise me.' },
+  { name: 'Emma Wright',   age: 26, gender: 'woman', attraction: 'women', intent: 'long_term',  intellect: 5, comm: 'meet_in_person', score: 7.8, img: 31, bio: 'Quiet nights, deep books, slow mornings. Long-term minded.' },
+  { name: 'Lior Mizrahi',  age: 32, gender: 'woman', attraction: 'men',   intent: 'friendship', intellect: 2, comm: 'voice_early',    score: 5.1, img: 32, bio: 'Calls over texts. Here for friendship and good company.' },
 ] as const;
+
+// Pravatar keys a face off its `img` number, so build 4 distinct images per
+// profile to populate the 4-photo gallery. (They won't be the same face — it's
+// stock data — but it exercises the multi-photo UI.)
+function photosFor(img: number): string[] {
+  const ids = [img, ((img + 16) % 70) + 1, ((img + 33) % 70) + 1, ((img + 50) % 70) + 1];
+  return ids.map((n) => `https://i.pravatar.cc/400?img=${n}`);
+}
 
 const LOOK_TAG_SETS = [
   ['blonde', 'light_skin'],
@@ -51,13 +59,15 @@ const LOOK_TAG_SETS = [
   ['blonde', 'tall', 'medium_skin'],
 ];
 
-const INTEREST_TAG_SETS = [
-  ['intellectual_curiosity', 'homebody_rhythm'],
-  ['social_energy', 'creative_arts'],
-  ['active_lifestyle', 'adventure'],
-  ['mindful_service', 'social_energy'],
-  ['creative_arts', 'intellectual_curiosity'],
-  ['outdoor_energy', 'active_lifestyle'],
+// Five interests per profile, drawn from the user-selectable catalog.
+const INTEREST_SETS = [
+  ['hiking', 'running', 'fitness', 'nature', 'travel'],
+  ['cooking', 'foodie', 'coffee', 'reading', 'film'],
+  ['live_music', 'art', 'photography', 'nightlife', 'travel'],
+  ['yoga', 'nature', 'reading', 'volunteering', 'coffee'],
+  ['gaming', 'film', 'foodie', 'coffee', 'pets'],
+  ['art', 'photography', 'reading', 'live_music', 'travel'],
+  ['fitness', 'running', 'foodie', 'travel', 'pets'],
 ];
 
 function emailFor(name: string): string {
@@ -87,25 +97,30 @@ async function main() {
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
   console.log(`[seed] creating ${PROFILES.length} profiles…`);
-  const docs = PROFILES.map((p) => ({
-    email: emailFor(p.name),
-    name: p.name,
-    age: p.age,
-    authMethod: 'email' as const,
-    gender: p.gender,
-    attraction: p.attraction,
-    photoUrl: `https://i.pravatar.cc/400?img=${p.img}`,
-    passwordHash,
-    profile: {
-      intent: p.intent,
-      sharedIntellectImportance: p.intellect,
-      commStyle: p.comm,
-    },
-    currentPhase: 'phase_1' as const,
-    intentScore: p.score,
-    interestTags: INTEREST_TAG_SETS[p.img % INTEREST_TAG_SETS.length],
-    appearanceTags: LOOK_TAG_SETS[p.img % LOOK_TAG_SETS.length],
-  }));
+  const docs = PROFILES.map((p, i) => {
+    const photos = photosFor(p.img);
+    return {
+      email: emailFor(p.name),
+      name: p.name,
+      age: p.age,
+      authMethod: 'email' as const,
+      gender: p.gender,
+      attraction: p.attraction,
+      photoUrl: photos[0],
+      photos,
+      bio: p.bio.slice(0, 100),
+      passwordHash,
+      profile: {
+        intent: p.intent,
+        sharedIntellectImportance: p.intellect,
+        commStyle: p.comm,
+      },
+      currentPhase: 'phase_1' as const,
+      intentScore: p.score,
+      interestTags: INTEREST_SETS[i % INTEREST_SETS.length],
+      appearanceTags: LOOK_TAG_SETS[p.img % LOOK_TAG_SETS.length],
+    };
+  });
   const users = await UserModel.insertMany(docs);
 
   // Create a few historical outcomes to train adaptive ranking weights.

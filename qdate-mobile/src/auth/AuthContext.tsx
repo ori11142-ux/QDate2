@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-import { api, BackendUser } from '../api';
+import { api, BackendUser, ProfileUpdatePayload } from '../api';
 import { clearUser, loadUser, saveUser, StoredUser } from '../storage/auth';
 import { Phase } from '../types';
 
@@ -10,7 +10,9 @@ export type RegisterInput = {
   age: number;
   authMethod: 'email' | 'apple';
   password: string;
-  photoUrl?: string | null;
+  photos: string[];
+  bio?: string;
+  interestTags?: string[];
   gender?: 'man' | 'woman' | null;
   attraction?: 'men' | 'women' | 'both' | null;
   profile: {
@@ -25,6 +27,7 @@ interface AuthContextValue {
   isHydrating: boolean;
   register: (input: RegisterInput) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  updateProfile: (updates: ProfileUpdatePayload) => Promise<void>;
   signOut: () => Promise<void>;
   togglePhase: () => Promise<void>;
 }
@@ -39,9 +42,12 @@ function backendUserToStored(u: BackendUser): StoredUser {
     age: u.age,
     authMethod: u.authMethod,
     photoUrl: u.photoUrl ?? null,
+    photos: u.photos ?? (u.photoUrl ? [u.photoUrl] : []),
+    bio: u.bio ?? '',
     gender: u.gender ?? null,
     attraction: u.attraction ?? null,
     profile: u.profile,
+    interestTags: u.interestTags ?? [],
     currentPhase: u.currentPhase,
     registeredAt: u.createdAt,
   };
@@ -79,6 +85,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(stored);
   }
 
+  // Persist profile edits to the backend, then mirror the canonical result
+  // (with sanitized interestTags) into local storage and context.
+  async function updateProfile(updates: ProfileUpdatePayload) {
+    if (!user) return;
+    const backendUser = await api.updateProfile(user.id, updates);
+    const stored = backendUserToStored(backendUser);
+    await saveUser(stored);
+    setUser(stored);
+  }
+
   async function signOut() {
     await clearUser();
     setUser(null);
@@ -96,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isHydrating, register, login, signOut, togglePhase }}
+      value={{ user, isHydrating, register, login, updateProfile, signOut, togglePhase }}
     >
       {children}
     </AuthContext.Provider>

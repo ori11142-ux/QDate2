@@ -1,4 +1,5 @@
 export type CalibrationTag =
+  // ── interest / lifestyle axes ──
   | 'active_lifestyle'
   | 'creative_arts'
   | 'intellectual_curiosity'
@@ -7,7 +8,26 @@ export type CalibrationTag =
   | 'outdoor_energy'
   | 'mindful_service'
   | 'adventure'
-  // Physical-trait appearance tags (replaced abstract style/vibe tags — Option B).
+  // ── concrete interest axes (user-selectable catalog) ──
+  | 'hiking'
+  | 'running'
+  | 'fitness'
+  | 'yoga'
+  | 'cooking'
+  | 'foodie'
+  | 'coffee'
+  | 'live_music'
+  | 'reading'
+  | 'art'
+  | 'photography'
+  | 'film'
+  | 'travel'
+  | 'gaming'
+  | 'nature'
+  | 'volunteering'
+  | 'nightlife'
+  | 'pets'
+  // ── physical-trait appearance axes (used by the looks deck) ──
   // Hair color
   | 'blonde'
   | 'dark_hair'
@@ -27,6 +47,23 @@ export type CalibrationTag =
   // Style
   | 'clean_cut'
   | 'edgy_look';
+
+// Canonical list of every axis. Used to build preference accumulators so adding
+// a new axis above is the only change required.
+export const CALIBRATION_TAGS: CalibrationTag[] = [
+  // lifestyle
+  'active_lifestyle', 'creative_arts', 'intellectual_curiosity', 'social_energy',
+  'homebody_rhythm', 'outdoor_energy', 'mindful_service', 'adventure',
+  // concrete interests
+  'hiking', 'running', 'fitness', 'yoga', 'cooking', 'foodie', 'coffee',
+  'live_music', 'reading', 'art', 'photography', 'film', 'travel', 'gaming',
+  'nature', 'volunteering', 'nightlife', 'pets',
+  // physical-trait appearance
+  'blonde', 'dark_hair', 'red_hair', 'light_brown_hair',
+  'light_skin', 'medium_skin', 'dark_skin',
+  'slim_build', 'athletic_build', 'curvy_build', 'full_build', 'tall', 'short',
+  'clean_cut', 'edgy_look',
+];
 
 export type InterestCalibrationCard = {
   id: string;

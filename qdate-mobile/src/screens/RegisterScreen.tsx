@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
-  Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,26 +11,32 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { PhotoPicker } from '../components/PhotoPicker';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ProgressBar } from '../components/ProgressBar';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../theme';
 
+const BIO_MAX = 100;
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
 export function RegisterScreen({ navigation, route }: Props) {
   const { authMethod } = route.params;
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [age, setAge] = useState('');
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [bio, setBio] = useState('');
 
   const ageNumber = parseInt(age, 10);
-  const isValid =
+  const fieldsValid =
     name.trim().length >= 2 &&
     email.includes('@') &&
     email.includes('.') &&
@@ -40,36 +44,7 @@ export function RegisterScreen({ navigation, route }: Props) {
     !isNaN(ageNumber) &&
     ageNumber >= 18 &&
     ageNumber <= 99;
-
-  async function handlePickPhoto() {
-    // In Expo Go the photo-library permission is handled by Expo Go itself,
-    // so this works without extra native config during development.
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        'Photo access needed',
-        'Allow photo library access to add a profile picture.'
-      );
-      return;
-    }
-
-    // mediaTypes defaults to images. quality + square crop keep the base64 small.
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.4,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets.length > 0) {
-      const asset = result.assets[0];
-      if (asset.base64) {
-        setPhotoUrl(`data:image/jpeg;base64,${asset.base64}`);
-      } else if (asset.uri) {
-        setPhotoUrl(asset.uri);
-      }
-    }
-  }
+  const isValid = fieldsValid && photos.length === 4;
 
   function handleContinue() {
     if (!isValid) return;
@@ -79,7 +54,8 @@ export function RegisterScreen({ navigation, route }: Props) {
       password,
       age: ageNumber,
       authMethod,
-      photoUrl,
+      photos,
+      bio: bio.trim(),
     });
   }
 
@@ -107,25 +83,29 @@ export function RegisterScreen({ navigation, route }: Props) {
             We&apos;ll use this to introduce you to your matches.
           </Text>
 
-          {/* Photo picker */}
+          {/* Photo picker — exactly 4 required */}
           <View style={styles.photoSection}>
-            <Pressable onPress={handlePickPhoto} style={styles.photoCircle}>
-              {photoUrl ? (
-                <Image source={{ uri: photoUrl }} style={styles.photoImage} />
-              ) : (
-                <View style={styles.photoPlaceholder}>
-                  <Text style={styles.photoPlaceholderIcon}>+</Text>
-                </View>
-              )}
-            </Pressable>
-            <Pressable onPress={handlePickPhoto} hitSlop={8}>
-              <Text style={styles.photoLabel}>
-                {photoUrl ? 'Change photo' : 'Add a photo'}
-              </Text>
-            </Pressable>
+            <Text style={styles.label}>Your photos</Text>
+            <Text style={styles.hint}>Add 4 photos ({photos.length}/4)</Text>
+            <PhotoPicker photos={photos} onChange={setPhotos} max={4} />
           </View>
 
           <View style={styles.form}>
+            <View style={styles.field}>
+              <Text style={styles.label}>Short bio</Text>
+              <TextInput
+                value={bio}
+                onChangeText={(v) => setBio(v.slice(0, BIO_MAX))}
+                placeholder="One line about you"
+                placeholderTextColor={colors.textMuted}
+                style={[styles.input, styles.bioInput]}
+                multiline
+                maxLength={BIO_MAX}
+              />
+              <Text style={styles.hint}>
+                {bio.length}/{BIO_MAX}
+              </Text>
+            </View>
             <Field
               label="Your name"
               value={name}
@@ -162,7 +142,7 @@ export function RegisterScreen({ navigation, route }: Props) {
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: spacing.lg + insets.bottom }]}>
           <View style={styles.progressRow}>
             <ProgressBar progress={0.5} />
           </View>
@@ -245,37 +225,8 @@ const styles = StyleSheet.create({
   },
 
   photoSection: {
-    alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginBottom: spacing.lg,
-  },
-  photoCircle: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  photoImage: { width: '100%', height: '100%' },
-  photoPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 56,
-    borderWidth: 2,
-    borderColor: colors.primaryLight,
-    borderStyle: 'dashed',
-    backgroundColor: colors.surfaceMuted,
-  },
-  photoPlaceholderIcon: {
-    fontSize: 40,
-    color: colors.primary,
-    fontWeight: '300',
-  },
-  photoLabel: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
   },
 
   form: { gap: spacing.lg },
@@ -291,6 +242,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text,
   },
+  bioInput: { minHeight: 60, textAlignVertical: 'top' },
   hint: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
 
   footer: {

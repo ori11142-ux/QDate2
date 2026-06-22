@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '../theme';
 
 interface Props {
   expiresAt: string; // ISO timestamp
   compact?: boolean;
+  onComplete?: () => void; // fired once when the countdown reaches zero
 }
 
 function formatRemaining(ms: number): string {
@@ -17,9 +18,14 @@ function formatRemaining(ms: number): string {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-export function CountdownTimer({ expiresAt, compact }: Props) {
+export function CountdownTimer({ expiresAt, compact, onComplete }: Props) {
   const targetMs = new Date(expiresAt).getTime();
   const [remaining, setRemaining] = useState(targetMs - Date.now());
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    firedRef.current = false;
+  }, [targetMs]);
 
   useEffect(() => {
     const id = setInterval(() => setRemaining(targetMs - Date.now()), 1000);
@@ -27,6 +33,13 @@ export function CountdownTimer({ expiresAt, compact }: Props) {
   }, [targetMs]);
 
   const expired = remaining <= 0;
+
+  useEffect(() => {
+    if (expired && !firedRef.current) {
+      firedRef.current = true;
+      onComplete?.();
+    }
+  }, [expired, onComplete]);
 
   return (
     <View style={[styles.pill, compact && styles.pillCompact, expired && styles.pillExpired]}>
@@ -43,7 +56,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.pill,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   pillCompact: {
     paddingHorizontal: spacing.sm,

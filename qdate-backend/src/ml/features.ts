@@ -1,9 +1,9 @@
 import { Types } from 'mongoose';
-import { UserDoc } from '../models/User';
+import { UserDoc, UserModel } from '../models/User';
 import { MessageModel } from '../models/Message';
 import { SwipeModel } from '../models/Swipe';
 import { FeedbackModel } from '../models/Feedback';
-import { CARD_TAGS_BY_ID, CalibrationTag } from './calibrationCards';
+import { CARD_TAGS_BY_ID, CALIBRATION_TAGS, CalibrationTag } from './calibrationCards';
 
 export type PreferenceVector = Partial<Record<CalibrationTag, number>>;
 
@@ -72,11 +72,8 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 function preferenceToArray(pref: PreferenceVector): number[] {
-  const tags = Object.keys(CARD_TAGS_BY_ID)
-    .flatMap((cardId) => CARD_TAGS_BY_ID[cardId])
-    .filter((value, index, self) => self.indexOf(value) === index)
-    .sort();
-  return tags.map((t) => pref[t] ?? 0);
+  // Stable ordering across ALL axes so two vectors compare on the same basis.
+  return CALIBRATION_TAGS.map((t) => pref[t] ?? 0);
 }
 
 export function preferenceAlignment(preferences: PreferenceVector, candidateTags: string[]): number {
@@ -107,39 +104,39 @@ export async function buildPreferenceVector(
   const swipes = await SwipeModel.find({ userId, mode }).select('cardId liked responseTimeMs').lean();
   if (swipes.length === 0) return {};
 
-  const accum: Record<CalibrationTag, number> = {
-    active_lifestyle: 0,
-    creative_arts: 0,
-    intellectual_curiosity: 0,
-    social_energy: 0,
-    homebody_rhythm: 0,
-    outdoor_energy: 0,
-    mindful_service: 0,
-    adventure: 0,
-    // Physical-trait appearance tags
-    blonde: 0,
-    dark_hair: 0,
-    red_hair: 0,
-    light_brown_hair: 0,
-    light_skin: 0,
-    medium_skin: 0,
-    dark_skin: 0,
-    slim_build: 0,
-    athletic_build: 0,
-    curvy_build: 0,
-    full_build: 0,
-    tall: 0,
-    short: 0,
-    clean_cut: 0,
-    edgy_look: 0,
+  // Cards are now real profiles whose id is a user id. Resolve each swiped
+  // profile to its own tags (interestTags for 'interests', appearanceTags for
+  // 'looks'). Legacy static cards (int_*/look_*) still resolve via CARD_TAGS_BY_ID.
+  const profileCardIds = swipes
+    .map((s) => s.cardId)
+    .filter((id) => !CARD_TAGS_BY_ID[id] && Types.ObjectId.isValid(id));
+  const tagsByProfile = new Map<string, string[]>();
+  if (profileCardIds.length > 0) {
+    const field = mode === 'interests' ? 'interestTags' : 'appearanceTags';
+    const profiles = await UserModel.find({ _id: { $in: profileCardIds } })
+      .select(field)
+      .lean();
+    for (const p of profiles) {
+      tagsByProfile.set(String(p._id), (p as unknown as Record<string, string[]>)[field] ?? []);
+    }
+  }
+
+  const tagsForCard = (cardId: string): CalibrationTag[] => {
+    const raw = CARD_TAGS_BY_ID[cardId] ?? tagsByProfile.get(cardId) ?? [];
+    return raw as CalibrationTag[];
   };
 
+  const accum = Object.fromEntries(
+    CALIBRATION_TAGS.map((t) => [t, 0])
+  ) as Record<CalibrationTag, number>;
+
   for (const swipe of swipes) {
-    const tags = CARD_TAGS_BY_ID[swipe.cardId] ?? [];
+    const tags = tagsForCard(swipe.cardId);
     if (tags.length === 0) continue;
     const polarity = swipe.liked ? 1 : -1;
     const confidence = confidenceFromResponseMs(swipe.responseTimeMs ?? null);
     for (const tag of tags) {
+      if (accum[tag] === undefined) continue; // ignore tags outside the known axes
       accum[tag] += polarity * confidence;
     }
   }

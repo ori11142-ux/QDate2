@@ -10,9 +10,12 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useAuth } from '../auth/AuthContext';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ProgressBar } from '../components/ProgressBar';
+import { INTEREST_OPTIONS, INTEREST_PICK_COUNT } from '../data/interests';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { Attraction, CommStyle, DatingIntent, Gender } from '../types';
 import { colors, radius, spacing, typography } from '../theme';
@@ -44,20 +47,35 @@ const ATTRACTION_OPTIONS: { value: Attraction; label: string }[] = [
 ];
 
 export function OnboardingScreen({ route }: Props) {
-  const { name, email, password, age, authMethod, photoUrl } = route.params;
+  const { name, email, password, age, authMethod, photos, bio } = route.params;
   const { register } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [intent, setIntent] = useState<DatingIntent | null>(null);
   const [intellect, setIntellect] = useState<number>(0);
   const [comm, setComm] = useState<CommStyle | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
   const [attraction, setAttraction] = useState<Attraction | null>(null);
+  const [interests, setInterests] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const stepsComplete = [intent, intellect > 0, comm, gender, attraction].filter(
-    Boolean
-  ).length;
-  const ready = stepsComplete === 5;
+  function toggleInterest(tag: string) {
+    setInterests((cur) => {
+      if (cur.includes(tag)) return cur.filter((t) => t !== tag);
+      if (cur.length >= INTEREST_PICK_COUNT) return cur; // cap at 5
+      return [...cur, tag];
+    });
+  }
+
+  const stepsComplete = [
+    intent,
+    intellect > 0,
+    comm,
+    gender,
+    attraction,
+    interests.length === INTEREST_PICK_COUNT,
+  ].filter(Boolean).length;
+  const ready = stepsComplete === 6;
 
   async function handleStart() {
     if (!ready || submitting) return;
@@ -71,7 +89,9 @@ export function OnboardingScreen({ route }: Props) {
         age,
         authMethod,
         password,
-        photoUrl,
+        photos,
+        bio,
+        interestTags: interests,
         gender,
         attraction,
         profile: {
@@ -178,9 +198,31 @@ export function OnboardingScreen({ route }: Props) {
             </Pressable>
           ))}
         </View>
+
+        <Text style={styles.question}>Your interests</Text>
+        <Text style={styles.subtitle}>
+          Pick {INTEREST_PICK_COUNT} that describe you ({interests.length}/
+          {INTEREST_PICK_COUNT}) — we use these to find better matches.
+        </Text>
+        <View style={styles.commRow}>
+          {INTEREST_OPTIONS.map((opt) => {
+            const active = interests.includes(opt.tag);
+            return (
+              <Pressable
+                key={opt.tag}
+                onPress={() => toggleInterest(opt.tag)}
+                style={[styles.commChip, active && styles.commChipSelected]}
+              >
+                <Text style={[styles.commChipLabel, active && styles.commChipLabelSelected]}>
+                  {opt.emoji} {opt.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: spacing.lg + insets.bottom }]}>
         <View style={styles.progressRow}>
           <ProgressBar progress={1.0} />
         </View>

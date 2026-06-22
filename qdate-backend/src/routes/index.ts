@@ -1,7 +1,15 @@
 import { Router } from 'express';
 import mongoose, { Types } from 'mongoose';
 
-import { createUser, findUserById, findUserByEmail } from '../services/users';
+import {
+  createUser,
+  findUserById,
+  findUserByEmail,
+  updateUserProfile,
+  ProfileUpdate,
+} from '../services/users';
+import { INTEREST_OPTIONS, sanitizeInterestTags } from '../data/interests';
+import { DATING_INTENTS, COMM_STYLES, GENDERS, ATTRACTIONS } from '../models/User';
 import {
   AuthError,
   registerWithPassword,
@@ -80,12 +88,28 @@ router.get('/health', (_req, res) => {
 
 router.post('/auth/register', async (req, res) => {
   try {
-    const { email, name, age, authMethod, password, photoUrl, gender, attraction, profile } =
-      req.body;
+    const {
+      email,
+      name,
+      age,
+      authMethod,
+      password,
+      photoUrl,
+      photos,
+      bio,
+      interestTags,
+      gender,
+      attraction,
+      profile,
+    } = req.body;
     if (!email || !name || !age || !password || !profile) {
       res
         .status(400)
         .json({ error: 'email, name, age, password, and profile are required' });
+      return;
+    }
+    if (!Array.isArray(photos) || photos.filter((p) => typeof p === 'string' && p).length !== 4) {
+      res.status(400).json({ error: 'Exactly 4 profile photos are required' });
       return;
     }
     const user = await registerWithPassword({
@@ -95,6 +119,9 @@ router.post('/auth/register', async (req, res) => {
       authMethod: authMethod ?? 'email',
       password,
       photoUrl,
+      photos,
+      bio,
+      interestTags,
       gender,
       attraction,
       profile,
@@ -162,6 +189,80 @@ router.get('/users/by-email/:email', async (req, res) => {
     return;
   }
   res.json(user.toJSON());
+});
+
+// Update an existing user's profile. Only whitelisted fields are accepted, and
+// interestTags are sanitized against the known interest catalog so the matching
+// model only ever sees valid axes.
+router.patch('/users/:id', async (req, res) => {
+  try {
+    if (!parseObjectId(req.params.id)) {
+      res.status(400).json({ error: 'Invalid user id' });
+      return;
+    }
+    const body = req.body ?? {};
+    const updates: ProfileUpdate = {};
+
+    if (typeof body.name === 'string' && body.name.trim()) {
+      updates.name = body.name.trim();
+    }
+    if (typeof body.age === 'number') {
+      updates.age = body.age;
+    }
+    if (body.gender === null || GENDERS.includes(body.gender)) {
+      updates.gender = body.gender ?? null;
+    }
+    if (body.attraction === null || ATTRACTIONS.includes(body.attraction)) {
+      updates.attraction = body.attraction ?? null;
+    }
+    if (typeof body.photoUrl === 'string' || body.photoUrl === null) {
+      updates.photoUrl = body.photoUrl ?? null;
+    }
+    if (Array.isArray(body.photos)) {
+      const photos = body.photos.filter((p: unknown) => typeof p === 'string' && p).slice(0, 4);
+      updates.photos = photos;
+      updates.photoUrl = photos[0] ?? null; // keep the primary avatar in sync
+    }
+    if (typeof body.bio === 'string') {
+      updates.bio = body.bio.slice(0, 100);
+    }
+    if (body.profile && typeof body.profile === 'object') {
+      const p = body.profile;
+      if (
+        DATING_INTENTS.includes(p.intent) &&
+        COMM_STYLES.includes(p.commStyle) &&
+        typeof p.sharedIntellectImportance === 'number'
+      ) {
+        updates.profile = {
+          intent: p.intent,
+          commStyle: p.commStyle,
+          sharedIntellectImportance: p.sharedIntellectImportance,
+        };
+      }
+    }
+    if ('interestTags' in body) {
+      updates.interestTags = sanitizeInterestTags(body.interestTags);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' });
+      return;
+    }
+
+    const user = await updateUserProfile(req.params.id, updates);
+    if (!user) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.json(user.toJSON());
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? 'Failed to update profile' });
+  }
+});
+
+// Catalog of selectable interests (shared with the mobile client).
+router.get('/interests', (_req, res) => {
+  res.json(INTEREST_OPTIONS);
 });
 
 // ─── Matches ────────────────────────────────────────────────────────────────

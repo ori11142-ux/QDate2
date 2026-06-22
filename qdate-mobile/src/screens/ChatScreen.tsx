@@ -14,6 +14,8 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { api } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -29,6 +31,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const { matchId, conversationId, candidateName, candidatePhotoUrl } = route.params;
   const { user } = useAuth();
   const userId = user?.id ?? '';
+  const insets = useSafeAreaInsets();
 
   const [bothConnected, setBothConnected] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -200,7 +203,7 @@ export function ChatScreen({ navigation, route }: Props) {
         )}
 
         {bothConnected && (
-          <View style={styles.composer}>
+          <View style={[styles.composer, { paddingBottom: spacing.sm + insets.bottom }]}>
             <TextInput
               value={draft}
               onChangeText={setDraft}

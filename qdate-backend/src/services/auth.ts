@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { UserModel, UserDoc } from '../models/User';
+import { sanitizeInterestTags } from '../data/interests';
 
 const SALT_ROUNDS = 10;
 
@@ -16,6 +17,9 @@ export type RegisterInput = {
   authMethod: 'email' | 'apple';
   password: string;
   photoUrl?: string | null;
+  photos?: string[];
+  bio?: string;
+  interestTags?: string[];
   gender?: 'man' | 'woman' | null;
   attraction?: 'men' | 'women' | 'both' | null;
   profile: {
@@ -39,12 +43,18 @@ export async function registerWithPassword(input: RegisterInput): Promise<UserDo
 
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
+  const photos = (input.photos ?? []).filter((p) => typeof p === 'string' && p).slice(0, 4);
+  const primaryPhoto = photos[0] ?? input.photoUrl ?? null;
+
   return UserModel.create({
     email,
     name: input.name,
     age: input.age,
     authMethod: input.authMethod,
-    photoUrl: input.photoUrl ?? null,
+    photoUrl: primaryPhoto,
+    photos,
+    bio: (input.bio ?? '').slice(0, 100),
+    interestTags: sanitizeInterestTags(input.interestTags),
     gender: input.gender ?? null,
     attraction: input.attraction ?? null,
     passwordHash,
