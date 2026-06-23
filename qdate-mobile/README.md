@@ -108,7 +108,7 @@ Auth wiring (when ready):
 
 **Story-essential:**
 - Match expiry flow: when the 24h/7d countdown hits zero, show a feedback prompt
-- Real photo URLs (placeholder service like `https://i.pravatar.cc/400?u={matchId}` until backend serves them)
+- Labeled placeholder profile photo URLs (e.g. `https://placehold.co/600x600.png?text=blonde%20%C2%B7%20light_skin`)
 
 **Polish:**
 - Profile/settings screen (currently sign-out is buried in Insights)

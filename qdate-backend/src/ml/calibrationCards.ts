@@ -85,7 +85,7 @@ export type LookCalibrationCard = {
  * Generates a self-labeling look-card placeholder as a PNG URL that React
  * Native's <Image> can render without SVG dependencies.
  */
-export function makeLabeledLookPhoto(tags: CalibrationTag[]): string {
+export function makeLabeledLookPhoto(tags: readonly string[]): string {
   const label = encodeURIComponent(tags.join(' · '));
   return `https://placehold.co/600x600.png?text=${label}`;
 }
