@@ -17,6 +17,7 @@ import { MessageModel } from '../models/Message';
 import { SwipeModel } from '../models/Swipe';
 import { FeedbackModel } from '../models/Feedback';
 import { MessageEventModel } from '../models/MessageEvent';
+import { makeLabeledLookPhoto, type CalibrationTag } from '../ml/calibrationCards';
 
 // The shared login password for every seeded account.
 const PASSWORD = 'qdate1234';
@@ -42,15 +43,14 @@ const PROFILES = [
   { name: 'Lior Mizrahi',  age: 32, gender: 'woman', attraction: 'men',   intent: 'friendship', intellect: 2, comm: 'voice_early',    score: 5.1, img: 32, bio: 'Calls over texts. Here for friendship and good company.' },
 ] as const;
 
-// Pravatar keys a face off its `img` number, so build 4 distinct images per
-// profile to populate the 4-photo gallery. (They won't be the same face — it's
-// stock data — but it exercises the multi-photo UI.)
-function photosFor(img: number): string[] {
-  const ids = [img, ((img + 16) % 70) + 1, ((img + 33) % 70) + 1, ((img + 50) % 70) + 1];
-  return ids.map((n) => `https://i.pravatar.cc/400?img=${n}`);
+function photosFor(appearanceTags: CalibrationTag[], fallbackLabel: string): string[] {
+  const labelTokens = appearanceTags.length > 0 ? appearanceTags : [fallbackLabel];
+  return Array.from({ length: 4 }, (_, i) =>
+    makeLabeledLookPhoto([...labelTokens, `(${i + 1}/4)`])
+  );
 }
 
-const LOOK_TAG_SETS = [
+const LOOK_TAG_SETS: CalibrationTag[][] = [
   ['blonde', 'light_skin'],
   ['dark_hair', 'athletic_build'],
   ['red_hair', 'curvy_build'],
@@ -73,6 +73,10 @@ const INTEREST_SETS = [
 function emailFor(name: string): string {
   // "Noah Bennett" -> "noah.bennett@qdate.test"
   return `${name.toLowerCase().replace(/\s+/g, '.')}@qdate.test`;
+}
+
+function firstNameFor(name: string): string {
+  return name.trim().split(/\s+/)[0] || 'QDate';
 }
 
 async function main() {
@@ -98,7 +102,8 @@ async function main() {
 
   console.log(`[seed] creating ${PROFILES.length} profiles…`);
   const docs = PROFILES.map((p, i) => {
-    const photos = photosFor(p.img);
+    const appearanceTags = LOOK_TAG_SETS[p.img % LOOK_TAG_SETS.length];
+    const photos = photosFor(appearanceTags, firstNameFor(p.name));
     return {
       email: emailFor(p.name),
       name: p.name,
@@ -118,7 +123,7 @@ async function main() {
       currentPhase: 'phase_1' as const,
       intentScore: p.score,
       interestTags: INTEREST_SETS[i % INTEREST_SETS.length],
-      appearanceTags: LOOK_TAG_SETS[p.img % LOOK_TAG_SETS.length],
+      appearanceTags,
     };
   });
   const users = await UserModel.insertMany(docs);
